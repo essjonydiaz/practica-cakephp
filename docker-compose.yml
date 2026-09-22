@@ -1,0 +1,37 @@
+services:
+  app:
+    build: .
+    container_name: cakephp_app
+    ports:
+      - "8765:80"
+    volumes:
+      - ./app:/var/www/html
+    environment:
+      - DEBUG=true
+    depends_on:
+      - db
+    networks:
+      - red-laboratorio
+
+  db:
+    image: mariadb:11.4
+    container_name: mariadb_db
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: secret_root_pass
+      MYSQL_DATABASE: cake_db
+      MYSQL_USER: cake_user
+      MYSQL_PASSWORD: cake_password
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+    networks:
+      - red-laboratorio
+
+volumes:
+  db_data:
+
+networks:
+  red-laboratorio:
+    driver: bridge

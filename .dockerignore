@@ -1,0 +1,21 @@
+.git
+.gitignore
+.vercel
+.idea
+.vscode
+
+# El stack de desarrollo local no entra en la imagen de Vercel
+Dockerfile
+docker-compose.yml
+README-DEPLOY.md
+
+# Dependencias y archivos generados: se reconstruyen en el build
+app/vendor
+app/tmp
+app/logs
+app/tests
+app/node_modules
+
+# Credenciales locales: en produccion la config viene de variables de entorno
+app/config/app_local.php
+app/config/.env

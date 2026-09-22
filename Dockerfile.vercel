@@ -1,0 +1,64 @@
+# syntax=docker/dockerfile:1
+#
+# Imagen de PRODUCCION para Vercel (runtime: container) usando FrankenPHP.
+# El Dockerfile de desarrollo local (php:8.3-apache + docker-compose) no se toca.
+#
+# Contexto de build = raiz del repo, el proyecto CakePHP vive en ./app
+
+# ---------- 1. Dependencias de Composer (sin dev) ----------
+FROM composer:2 AS dependencies
+WORKDIR /build
+COPY app/composer.json app/composer.lock ./
+RUN composer install \
+        --no-dev \
+        --no-interaction \
+        --no-progress \
+        --no-scripts \
+        --ignore-platform-reqs \
+        --optimize-autoloader
+
+# ---------- 2. Runtime FrankenPHP ----------
+FROM dunglas/frankenphp:1-php8.3-alpine
+
+# Extensiones que necesita CakePHP 5 (intl + pdo_mysql/pdo_pgsql + mbstring)
+RUN install-php-extensions \
+        intl \
+        pdo_mysql \
+        pdo_pgsql \
+        mbstring \
+        zip \
+        opcache
+
+WORKDIR /app
+
+# Codigo de la aplicacion (app_local.php / vendor / tmp quedan fuera via .dockerignore)
+COPY app/ ./
+COPY --from=dependencies /build/vendor ./vendor
+
+# Config del servidor
+COPY Caddyfile /etc/caddy/Caddyfile
+COPY docker/vercel-entrypoint.sh /usr/local/bin/vercel-entrypoint.sh
+
+RUN chmod +x /usr/local/bin/vercel-entrypoint.sh \
+    && mkdir -p tmp/cache/models tmp/cache/persistent tmp/cache/views tmp/sessions logs \
+    && chmod -R 0777 tmp logs
+
+# opcache para produccion
+RUN { \
+        echo 'opcache.enable=1'; \
+        echo 'opcache.enable_cli=0'; \
+        echo 'opcache.memory_consumption=128'; \
+        echo 'opcache.max_accelerated_files=20000'; \
+        echo 'opcache.validate_timestamps=0'; \
+    } > /usr/local/etc/php/conf.d/zz-opcache.ini \
+    && { \
+        echo 'memory_limit=256M'; \
+        echo 'expose_php=Off'; \
+    } > /usr/local/etc/php/conf.d/zz-app.ini
+
+# Vercel inyecta PORT; 80 es el default segun la guia oficial
+ENV PORT=80
+EXPOSE 80
+
+ENTRYPOINT ["/usr/local/bin/vercel-entrypoint.sh"]
+CMD ["frankenphp", "run", "--config", "/etc/caddy/Caddyfile"]

@@ -1,0 +1,21 @@
+{
+	# FrankenPHP como app server; Vercel termina TLS por fuera.
+	frankenphp
+	auto_https off
+	admin off
+	servers {
+		trusted_proxies static 0.0.0.0/0
+	}
+}
+
+# Vercel inyecta la variable PORT en el contenedor.
+:{$PORT:80} {
+	root * /app/webroot
+	encode zstd gzip
+
+	# php_server sirve los archivos estaticos de webroot/ y manda
+	# cualquier otra ruta (ej: /students) a webroot/index.php -> CakePHP.
+	php_server {
+		try_files {path} {path}/index.php index.php
+	}
+}
