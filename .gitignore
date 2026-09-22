@@ -2,3 +2,5 @@ app/vendor/
 app/tmp/
 app/logs/
 app/config/app_local.php
+.vercel
+.env*
